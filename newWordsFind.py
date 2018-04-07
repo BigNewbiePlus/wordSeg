@@ -74,7 +74,7 @@ class SegDocument(object):
     1. Generate words from a long enough document
     2. Do the segmentation work with the document
     """
-    def __init__(self, doc, max_word_len=5, min_tf=0.000005, min_infor_ent=0.07, min_pmi=5):
+    def __init__(self, doc, max_word_len=5, min_tf=0.000005, min_infor_ent=1.0, min_pmi=5):
         super(SegDocument, self).__init__()
         self.max_word_len = max_word_len
         self.min_tf = min_tf
@@ -129,7 +129,8 @@ if __name__ == '__main__':
 
     start = time.clock()
     path = os.path.abspath('.')
-    doc = open(path + '\\zibenlun.txt', 'r').read()
+    #doc = open(path + '\\zibenlun.txt', 'r').read()
+    doc = open(path + '/news_game.txt', 'r').read()
     xx = SegDocument(doc)
     print '西游记平均长度:', xx.avg_len
     print '西游记平均词频:', xx.avg_freq
@@ -139,6 +140,6 @@ if __name__ == '__main__':
     for item in xx.word_tf_pmi_ent:
         word.append([item[0], item[1], item[2], item[3]])
     df = pd.DataFrame(word, columns=['word', 'tf', 'pmi', 'info_ent'])
-    df.to_csv(path+'\\zibenlunSeg.csv', index=False)
+    df.to_csv(path+'/newsgameSeg.csv', index=False)
     end = time.clock()
     print end-start
