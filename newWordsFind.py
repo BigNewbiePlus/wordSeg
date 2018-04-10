@@ -16,8 +16,7 @@ import pandas as pd
 import sys
 from leftRightEntropy import cal_infor_entropy
 from createCandidateWords import extract_cand_words, gen_bigram
-reload(sys)
-sys.setdefaultencoding('utf8')
+from pyutil import pyredis
 
 class GetWordInfo(object):
     """
@@ -31,8 +30,8 @@ class GetWordInfo(object):
         super(GetWordInfo, self).__init__()
         self.text = text
         self.freq = 0.0
-        self.left = []
-        self.right = []
+        self.left = dict()
+        self.right = dict()
         self.pmi = 0
 
     def update_att(self, left, right):
@@ -43,9 +42,9 @@ class GetWordInfo(object):
         """
         self.freq += 1
         if left:
-            self.left.append(left)
+            self.left[left] = self.left.get(left, 0) + 1
         if right:
-            self.right.append(right)
+            self.right[right] = self.right.get(right, 0) + 1
 
     def compute_indexes(self, length):
         """
@@ -103,28 +102,41 @@ class SegDocument(object):
         """
         doc = re.sub("[\s+\.\!\/_,$%^*(+\"\']+|[+——！，。？、~@#”“￥：%……&*（）]+".decode("utf8"),
                       "".decode("utf8"), doc.decode('utf8'))
-        suffix_indexes = extract_cand_words(doc, self.max_word_len)
-        word_cands = {}
-        # compute frequency and neighbors
-        for suf in suffix_indexes:
-            word = doc[suf[0]:suf[1]]
-            if word not in word_cands:
-                word_cands[word] = GetWordInfo(word)
-            word_cands[word].update_att(doc[suf[0]-1:suf[0]], doc[suf[1]:suf[1]+1])
-
-        # compute the tf and info_entropy
+        word_cands = dict()
+        # iterate all candidate of words
         doc_lens = len(doc)
+        cnt = 0
+        for i in xrange(doc_lens):
+            for j in xrange(i + 1, min(i + 1 + self.max_word_len, doc_lens + 1)):
+                word = doc[i:j]
+                cnt += 1
+                if cnt % 10000 == 0:
+                    print 'process word:', cnt
+                    sys.stdout.flush()
+                if word not in word_cands:
+                    word_cands[word] = GetWordInfo(word)
+                word_cands[word].update_att(doc[i-1:i], doc[j:j+1])
+        del doc
+
+        print 'compute tf and info'
+        # compute the tf and info_entropy
         for word in word_cands:
             word_cands[word].compute_indexes(doc_lens)
 
+        #print 'sort'
         # compute PMI for every word, if len(word)>1
-        values = sorted(word_cands.values(), key=lambda x: len(x.text))
+        #values = sorted(word_cands.values(), key=lambda x: len(x.text))
 
+        values = word_cands.values()
+        print 'cal pmi'
         for v in values:
             if len(v.text) == 1:
                 continue
             v.compute_info_entropy(word_cands)
-        return sorted(values, key=lambda v: v.freq, reverse=True)
+        print 'ret sort'
+        return sorted(values, key=lambda v: v.freq, reverse=True)[:1000000]
+
+
 if __name__ == '__main__':
 
     start = time.clock()
